@@ -8,7 +8,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 import os
-app.config["SECRET_KEY"] = os.getenv("Admin123*")
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+
 
 
 def create_access_token(user_id: int, role: str, expires_minutes: int = 60) -> str:
