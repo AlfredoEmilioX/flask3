@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Curso{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>{% if curso %}Editar Curso{% else %}Nuevo Curso{% endif %}</h2>
+
+    <form method="POST"
+          action="{% if curso %}/cursos/actualizar/{{ curso.id }}{% else %}/cursos/guardar{% endif %}">
+        
+        <input type="text" name="nombre" class="form-control mb-2"
+               placeholder="Nombre del curso"
+               value="{{ curso.nombre if curso else '' }}" required>
+
+        <textarea name="descripcion" class="form-control mb-2"
+                  placeholder="Descripción del curso"
+                  required>{{ curso.descripcion if curso else '' }}</textarea>
+
+        <button class="btn btn-success">
+            {% if curso %}Actualizar{% else %}Guardar{% endif %}
+        </button>
+
+        <a href="/cursos" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Nueva Inscripción{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Registrar Alumno en Curso</h2>
+
+    <form method="POST" action="/inscripciones/guardar">
+
+        <label>Alumno</label>
+        <select name="usuario_id" class="form-control mb-3" required>
+            <option value="">Seleccione un alumno</option>
+            {% for u in usuarios %}
+            <option value="{{ u.id }}">{{ u.nombre }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Curso</label>
+        <select name="curso_id" class="form-control mb-3" required>
+            <option value="">Seleccione un curso</option>
+            {% for c in cursos %}
+            <option value="{{ c.id }}">{{ c.nombre }}</option>
+            {% endfor %}
+        </select>
+
+        <button class="btn btn-success">Registrar Inscripción</button>
+        <a href="/inscripciones" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

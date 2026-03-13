@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Inscripciones{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Listado de Inscripciones</h5>
+        </div>
+
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Usuario</th>
+                            <th>Curso</th>
+                            <th>Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for i in inscripciones %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>{{ i.usuario }}</td>
+                            <td>{{ i.curso }}</td>
+                            <td>{{ i.fecha_inscripcion }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                No hay inscripciones registradas
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

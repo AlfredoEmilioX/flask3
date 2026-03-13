@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Inicio{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+    <h4>Bienvenido</h4>
+
+    <form method="POST" class="mt-3">
+        <input type="text" name="nombre" class="form-control mb-2" placeholder="Ingrese su nombre">
+        <button class="btn btn-primary">Enviar</button>
+    </form>
+
+    {% if nombre %}
+        <p class="mt-3">Hola <strong>{{ nombre }}</strong>, bienvenido al sistema.</p>
+    {% endif %}
+</div>
+{% endblock %}

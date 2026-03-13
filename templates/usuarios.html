@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Usuarios{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+    <h2>Gestión de Usuarios</h2>
+
+    <a href="/usuarios/nuevo" class="btn btn-primary mb-3">Nuevo Usuario</a>
+
+    <table class="table table-bordered">
+        <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Acciones</th>
+        </tr>
+
+        {% for u in usuarios %}
+        <tr>
+            <td>{{ u.id }}</td>
+            <td>{{ u.nombre }}</td>
+            <td>{{ u.email }}</td>
+            <td>
+                <a href="/usuarios/editar/{{ u.id }}" class="btn btn-warning btn-sm">Editar</a>
+                <a href="/usuarios/eliminar/{{ u.id }}" class="btn btn-danger btn-sm"
+                   onclick="return confirm('¿Eliminar usuario?')">Eliminar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}

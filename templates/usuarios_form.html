@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Usuario{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>{% if usuario %}Editar Usuario{% else %}Nuevo Usuario{% endif %}</h2>
+
+    <form method="POST"
+          action="{% if usuario %}/usuarios/actualizar/{{ usuario.id }}{% else %}/usuarios/guardar{% endif %}">
+        
+        <input type="text" name="nombre" class="form-control mb-2"
+               placeholder="Nombre"
+               value="{{ usuario.nombre if usuario else '' }}" required>
+
+        <input type="email" name="email" class="form-control mb-2"
+               placeholder="Email"
+               value="{{ usuario.email if usuario else '' }}" required>
+
+        <button class="btn btn-success">
+            {% if usuario %}Actualizar{% else %}Guardar{% endif %}
+        </button>
+
+        <a href="/usuarios" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Cursos{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+    <h2>Gestión de Cursos</h2>
+
+   <a href="#" class="btn btn-primary mb-3" onclick="irNuevoCurso(event)">
+  Nuevo Curso
+</a>
+
+<script>
+function irNuevoCurso(e){
+  e.preventDefault();
+
+  const token = localStorage.getItem("token");
+  const role  = localStorage.getItem("role");
+
+
+  if (!token) {
+    window.location.href = "/login?next=/cursos/nuevo";
+    return;
+  }
+
+  if (role !== "admin") {
+    alert("Acceso denegado: solo administrador puede crear cursos.");
+    return;
+  }
+
+  window.location.href = "/cursos/nuevo";
+}
+</script>
+
+    <table class="table table-bordered">
+        <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Descripción</th>
+            <th>Acciones</th>
+        </tr>
+
+        {% for c in cursos %}
+        <tr>
+            <td>{{ c.id }}</td>
+            <td>{{ c.nombre }}</td>
+            <td>{{ c.descripcion }}</td>
+            <td>
+                <a href="/cursos/editar/{{ c.id }}" class="btn btn-warning btn-sm">Editar</a>
+                <a href="/cursos/eliminar/{{ c.id }}" class="btn btn-danger btn-sm"
+                   onclick="return confirm('¿Eliminar curso?')">Eliminar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endblock %}

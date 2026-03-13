@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Probar API Flask</title>
+</head>
+<body>
+    <h1>Pruebas de API</h1>
+
+    <h2>1. Login</h2>
+    <input type="email" id="login_email" placeholder="Correo">
+    <input type="password" id="login_password" placeholder="Contraseña">
+    <button onclick="login()">Iniciar sesión</button>
+
+    <hr>
+
+    <h2>2. Listar usuarios</h2>
+    <button onclick="listarUsuarios()">Obtener usuarios</button>
+
+    <hr>
+
+    <h2>3. Crear usuario</h2>
+
+<input type="text" id="nombre" placeholder="Nombre">
+<input type="email" id="email" placeholder="Email">
+<input type="password" id="password" placeholder="Password">
+<input type="text" id="role" placeholder="Role">
+
+<br><br>
+
+<input type="text" id="token" placeholder="Pega aquí el token JWT" size="100">
+
+<button onclick="crearUsuario()">Crear usuario</button>
+
+    <h2>Resultado</h2>
+    <pre id="resultado"></pre>
+
+    <script>
+        let token = "";
+
+        function mostrarResultado(data) {
+            document.getElementById("resultado").textContent =
+                JSON.stringify(data, null, 2);
+        }
+
+        function mostrarError(error) {
+            document.getElementById("resultado").textContent =
+                "Error: " + error;
+        }
+
+        function login() {
+            const datos = {
+                email: document.getElementById("login_email").value,
+                password: document.getElementById("login_password").value
+            };
+
+            fetch("http://127.0.0.1:5000/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(datos)
+            })
+            .then(response => response.json())
+            .then(data => {
+                token = data.access_token || "";
+                mostrarResultado(data);
+                console.log("Token guardado:", token);
+            })
+            .catch(error => mostrarError(error));
+        }
+
+        function listarUsuarios() {
+            fetch("http://127.0.0.1:5000/api/usuarios", {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + token
+                }
+            })
+            .then(response => response.json())
+            .then(data => mostrarResultado(data))
+            .catch(error => mostrarError(error));
+        }
+
+       function crearUsuario() {
+
+    const token = document.getElementById("token").value;
+
+    const datos = {
+        nombre: document.getElementById("nombre").value,
+        email: document.getElementById("email").value,
+        password: document.getElementById("password").value,
+        role: document.getElementById("role").value
+    };
+
+    fetch("/api/usuarios", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token
+        },
+        body: JSON.stringify(datos)
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById("resultado").textContent =
+            JSON.stringify(data, null, 2);
+    })
+    .catch(error => {
+        document.getElementById("resultado").textContent =
+            "Error: " + error;
+    });
+} 
+    
+    </script>
+</body>
+</html>
