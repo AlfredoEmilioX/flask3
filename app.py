@@ -118,7 +118,7 @@ def inicio():
 @app.route('/usuarios')
 def usuarios():
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("SELECT id, nombre, email, role, created_at FROM usuarios")
     data = cursor.fetchall()
     cursor.close()
@@ -155,7 +155,7 @@ def guardar_usuario():
 @app.route('/usuarios/editar/<int:id>')
 def editar_usuario(id):
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("SELECT id, nombre, email, role FROM usuarios WHERE id=%s", (id,))
     usuario = cursor.fetchone()
     cursor.close()
@@ -191,7 +191,7 @@ def eliminar_usuario(id):
 @app.route("/api/usuarios", methods=["GET"])
 def api_listar_usuarios():
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("SELECT id, nombre, email, role, created_at FROM usuarios")
     data = cursor.fetchall()
     cursor.close()
@@ -202,7 +202,7 @@ def api_listar_usuarios():
 @app.route("/api/usuarios/<int:id>", methods=["GET"])
 def api_obtener_usuario(id):
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("SELECT id, nombre, email, role, created_at FROM usuarios WHERE id = %s", (id,))
     usuario = cursor.fetchone()
     cursor.close()
@@ -266,7 +266,7 @@ def api_eliminar_usuario(id):
 @app.route('/cursos')
 def cursos():
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("SELECT * FROM cursos")
     data = cursor.fetchall()
     cursor.close()
@@ -331,7 +331,7 @@ def eliminar_curso(id):
 @app.route("/api/cursos", methods=["GET"])
 def api_listar_cursos():
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("SELECT * FROM cursos")
     data = cursor.fetchall()
     cursor.close()
@@ -342,7 +342,7 @@ def api_listar_cursos():
 @app.route("/api/cursos/<int:id>", methods=["GET"])
 def api_obtener_curso(id):
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("SELECT * FROM cursos WHERE id = %s", (id,))
     curso = cursor.fetchone()
     cursor.close()
@@ -393,7 +393,7 @@ def api_eliminar_curso(id):
 @app.route('/inscripciones')
 def inscripciones():
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("""
         SELECT i.id, u.nombre AS usuario, c.nombre AS curso, i.fecha_inscripcion
         FROM inscripciones i
@@ -409,7 +409,7 @@ def inscripciones():
 @app.route('/inscripciones/nueva')
 def nueva_inscripcion():
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("SELECT * FROM usuarios")
     usuarios = cursor.fetchall()
     cursor.execute("SELECT * FROM cursos")
@@ -439,7 +439,7 @@ def guardar_inscripcion():
 @app.route("/api/inscripciones", methods=["GET"])
 def api_listar_inscripciones():
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("""
         SELECT i.id, i.usuario_id, i.curso_id, i.fecha_inscripcion,
                u.nombre AS usuario, c.nombre AS curso
@@ -456,7 +456,7 @@ def api_listar_inscripciones():
 @app.route("/api/inscripciones/<int:id>", methods=["GET"])
 def api_obtener_inscripcion(id):
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor()
     cursor.execute("""
         SELECT i.id, i.usuario_id, i.curso_id, i.fecha_inscripcion,
                u.nombre AS usuario, c.nombre AS curso
