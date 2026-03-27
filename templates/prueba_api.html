@@ -20,17 +20,15 @@
     <hr>
 
     <h2>3. Crear usuario</h2>
+    <input type="text" id="nombre" placeholder="Nombre">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <input type="text" id="role" placeholder="Role">
 
-<input type="text" id="nombre" placeholder="Nombre">
-<input type="email" id="email" placeholder="Email">
-<input type="password" id="password" placeholder="Password">
-<input type="text" id="role" placeholder="Role">
+    <br><br>
 
-<br><br>
-
-<input type="text" id="token" placeholder="Pega aquí el token JWT" size="100">
-
-<button onclick="crearUsuario()">Crear usuario</button>
+    <input type="text" id="token" placeholder="Pega aquí el token JWT" size="100">
+    <button onclick="crearUsuario()">Crear usuario</button>
 
     <h2>Resultado</h2>
     <pre id="resultado"></pre>
@@ -54,7 +52,7 @@
                 password: document.getElementById("login_password").value
             };
 
-            fetch("http://127.0.0.1:5000/api/auth/login", {
+            fetch("/api/auth/login", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -64,6 +62,7 @@
             .then(response => response.json())
             .then(data => {
                 token = data.access_token || "";
+                document.getElementById("token").value = token;
                 mostrarResultado(data);
                 console.log("Token guardado:", token);
             })
@@ -71,7 +70,7 @@
         }
 
         function listarUsuarios() {
-            fetch("http://127.0.0.1:5000/api/usuarios", {
+            fetch("/api/usuarios", {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -83,36 +82,34 @@
             .catch(error => mostrarError(error));
         }
 
-       function crearUsuario() {
+        function crearUsuario() {
+            const tokenManual = document.getElementById("token").value;
 
-    const token = document.getElementById("token").value;
+            const datos = {
+                nombre: document.getElementById("nombre").value,
+                email: document.getElementById("email").value,
+                password: document.getElementById("password").value,
+                role: document.getElementById("role").value
+            };
 
-    const datos = {
-        nombre: document.getElementById("nombre").value,
-        email: document.getElementById("email").value,
-        password: document.getElementById("password").value,
-        role: document.getElementById("role").value
-    };
-
-    fetch("/api/usuarios", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + token
-        },
-        body: JSON.stringify(datos)
-    })
-    .then(response => response.json())
-    .then(data => {
-        document.getElementById("resultado").textContent =
-            JSON.stringify(data, null, 2);
-    })
-    .catch(error => {
-        document.getElementById("resultado").textContent =
-            "Error: " + error;
-    });
-} 
-    
+            fetch("/api/usuarios", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + tokenManual
+                },
+                body: JSON.stringify(datos)
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("resultado").textContent =
+                    JSON.stringify(data, null, 2);
+            })
+            .catch(error => {
+                document.getElementById("resultado").textContent =
+                    "Error: " + error;
+            });
+        }
     </script>
 </body>
 </html>
