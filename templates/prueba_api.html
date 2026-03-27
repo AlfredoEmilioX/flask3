@@ -46,69 +46,95 @@
                 "Error: " + error;
         }
 
-        function login() {
-            const datos = {
-                email: document.getElementById("login_email").value,
-                password: document.getElementById("login_password").value
-            };
+        function obtenerTokenActual() {
+            return document.getElementById("token").value.trim() || token;
+        }
 
-            fetch("/api/auth/login", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(datos)
-            })
-            .then(response => response.json())
-            .then(data => {
+        async function login() {
+            try {
+                const datos = {
+                    email: document.getElementById("login_email").value,
+                    password: document.getElementById("login_password").value
+                };
+
+                const response = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(datos)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    mostrarResultado(data);
+                    return;
+                }
+
                 token = data.access_token || "";
                 document.getElementById("token").value = token;
                 mostrarResultado(data);
                 console.log("Token guardado:", token);
-            })
-            .catch(error => mostrarError(error));
+            } catch (error) {
+                mostrarError(error);
+            }
         }
 
-        function listarUsuarios() {
-            fetch("/api/usuarios", {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + token
+        async function listarUsuarios() {
+            try {
+                const tokenActual = obtenerTokenActual();
+
+                const headers = {
+                    "Content-Type": "application/json"
+                };
+
+                if (tokenActual) {
+                    headers["Authorization"] = "Bearer " + tokenActual;
                 }
-            })
-            .then(response => response.json())
-            .then(data => mostrarResultado(data))
-            .catch(error => mostrarError(error));
+
+                const response = await fetch("/api/usuarios", {
+                    method: "GET",
+                    headers: headers
+                });
+
+                const data = await response.json();
+                mostrarResultado(data);
+            } catch (error) {
+                mostrarError(error);
+            }
         }
 
-        function crearUsuario() {
-            const tokenManual = document.getElementById("token").value;
+        async function crearUsuario() {
+            try {
+                const tokenActual = obtenerTokenActual();
 
-            const datos = {
-                nombre: document.getElementById("nombre").value,
-                email: document.getElementById("email").value,
-                password: document.getElementById("password").value,
-                role: document.getElementById("role").value
-            };
+                if (!tokenActual) {
+                    mostrarError("Debes iniciar sesión o pegar un token JWT.");
+                    return;
+                }
 
-            fetch("/api/usuarios", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": "Bearer " + tokenManual
-                },
-                body: JSON.stringify(datos)
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById("resultado").textContent =
-                    JSON.stringify(data, null, 2);
-            })
-            .catch(error => {
-                document.getElementById("resultado").textContent =
-                    "Error: " + error;
-            });
+                const datos = {
+                    nombre: document.getElementById("nombre").value,
+                    email: document.getElementById("email").value,
+                    password: document.getElementById("password").value,
+                    role: document.getElementById("role").value
+                };
+
+                const response = await fetch("/api/usuarios", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer " + tokenActual
+                    },
+                    body: JSON.stringify(datos)
+                });
+
+                const data = await response.json();
+                mostrarResultado(data);
+            } catch (error) {
+                mostrarError(error);
+            }
         }
     </script>
 </body>
