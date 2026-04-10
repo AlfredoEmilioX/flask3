@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, redirect, jsonify, session, url_for
 from db import get_connection
-from flask import request, render_template, redirect, url_for, session, flash
-from werkzeug.security import check_password_hash
+
 import os
 import jwt
 from datetime import datetime, timedelta, timezone
@@ -157,36 +156,41 @@ def login_page():
     return render_template("login.html")
 
 
-
-
 @app.route('/web-login', methods=['POST'])
 def web_login():
-    username = request.form['username']
-    password = request.form['password']
+    email = request.form.get('email')
+    password = request.form.get('password')
+
+    if not email or not password:
+        return "Faltan datos en el formulario", 400
 
     conn = get_connection()
     cur = conn.cursor()
 
     cur.execute("""
-        SELECT id, username, password_hash, role
+        SELECT id, email, password_hash, role
         FROM usuarios
-        WHERE username = %s
-    """, (username,))
+        WHERE email = %s
+    """, (email,))
 
     usuario = cur.fetchone()
 
     cur.close()
     conn.close()
 
-    if usuario is None or not check_password_hash(usuario['password_hash'], password):
-        flash("Usuario o contraseña incorrectos", "danger")
-        return redirect(url_for('login'))
+    if usuario is None:
+        return render_template('login.html', error="Correo no encontrado")
+
+    if not check_password_hash(usuario['password_hash'], password):
+        return render_template('login.html', error="Contraseña incorrecta")
 
     session['user_id'] = usuario['id']
-    session['username'] = usuario['username']
+    session['email'] = usuario['email']
     session['role'] = usuario['role']
 
     return redirect(url_for('index'))
+
+
 
 
 @app.route("/dashboard")
