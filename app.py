@@ -184,12 +184,15 @@ def web_login():
     if not check_password_hash(usuario["password_hash"], password):
         return render_template("login.html", error="Contraseña incorrecta"), 401
 
+    token = create_access_token(usuario["id"], usuario["role"], expires_minutes=60)
+
     session.clear()
     session["user"] = {
         "id": usuario["id"],
         "nombre": usuario["nombre"],
         "email": usuario["email"],
         "role": usuario["role"],
+        "token": token
     }
 
     return redirect(url_for("dashboard"))
