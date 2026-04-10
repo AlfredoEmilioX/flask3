@@ -149,48 +149,50 @@ def inicio():
     return redirect(url_for("dashboard"))
 
 
-@app.route("/login")
+@app.route("/login", methods=["GET"])
 def login_page():
     if "user" in session:
         return redirect(url_for("dashboard"))
     return render_template("login.html")
 
 
-@app.route('/web-login', methods=['POST'])
+@app.route("/web-login", methods=["POST"])
 def web_login():
-    email = request.form.get('email')
-    password = request.form.get('password')
+    email = request.form.get("email", "").strip()
+    password = request.form.get("password", "").strip()
 
     if not email or not password:
-        return "Faltan datos en el formulario", 400
+        return render_template("login.html", error="Debe ingresar correo y contraseña"), 400
 
     conn = get_connection()
     cur = conn.cursor()
 
-    cur.execute("""
-        SELECT id, email, password_hash, role
-        FROM usuarios
-        WHERE email = %s
-    """, (email,))
-
-    usuario = cur.fetchone()
-
-    cur.close()
-    conn.close()
+    try:
+        cur.execute("""
+            SELECT id, nombre, email, password_hash, role
+            FROM usuarios
+            WHERE email = %s
+        """, (email,))
+        usuario = cur.fetchone()
+    finally:
+        cur.close()
+        conn.close()
 
     if usuario is None:
-        return render_template('login.html', error="Correo no encontrado")
+        return render_template("login.html", error="Correo no encontrado"), 401
 
-    if not check_password_hash(usuario['password_hash'], password):
-        return render_template('login.html', error="Contraseña incorrecta")
+    if not check_password_hash(usuario["password_hash"], password):
+        return render_template("login.html", error="Contraseña incorrecta"), 401
 
-    session['user_id'] = usuario['id']
-    session['email'] = usuario['email']
-    session['role'] = usuario['role']
+    session.clear()
+    session["user"] = {
+        "id": usuario["id"],
+        "nombre": usuario["nombre"],
+        "email": usuario["email"],
+        "role": usuario["role"],
+    }
 
-    return redirect(url_for('index'))
-
-
+    return redirect(url_for("dashboard"))
 
 
 @app.route("/dashboard")
@@ -208,7 +210,7 @@ def logout():
 # ==========================================================
 # USUARIOS (WEB)
 # ==========================================================
-@app.route('/usuarios')
+@app.route("/usuarios")
 @admin_required_view
 def usuarios():
     conn = get_connection()
@@ -217,20 +219,20 @@ def usuarios():
     data = cursor.fetchall()
     cursor.close()
     conn.close()
-    return render_template('usuarios.html', usuarios=data)
+    return render_template("usuarios.html", usuarios=data)
 
 
-@app.route('/usuarios/nuevo')
+@app.route("/usuarios/nuevo")
 @admin_required_view
 def nuevo_usuario():
-    return render_template('usuarios_form.html')
+    return render_template("usuarios_form.html")
 
 
-@app.route('/usuarios/guardar', methods=['POST'])
+@app.route("/usuarios/guardar", methods=["POST"])
 @admin_required_view
 def guardar_usuario():
-    nombre = request.form['nombre']
-    email = request.form['email']
+    nombre = request.form["nombre"]
+    email = request.form["email"]
 
     default_password = "Alumno123*"
     password_hash = generate_password_hash(default_password)
@@ -245,10 +247,10 @@ def guardar_usuario():
     conn.commit()
     cursor.close()
     conn.close()
-    return redirect('/usuarios')
+    return redirect("/usuarios")
 
 
-@app.route('/usuarios/editar/<int:id>')
+@app.route("/usuarios/editar/<int:id>")
 @admin_required_view
 def editar_usuario(id):
     conn = get_connection()
@@ -257,14 +259,14 @@ def editar_usuario(id):
     usuario = cursor.fetchone()
     cursor.close()
     conn.close()
-    return render_template('usuarios_form.html', usuario=usuario)
+    return render_template("usuarios_form.html", usuario=usuario)
 
 
-@app.route('/usuarios/actualizar/<int:id>', methods=['POST'])
+@app.route("/usuarios/actualizar/<int:id>", methods=["POST"])
 @admin_required_view
 def actualizar_usuario(id):
-    nombre = request.form['nombre']
-    email = request.form['email']
+    nombre = request.form["nombre"]
+    email = request.form["email"]
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -275,10 +277,10 @@ def actualizar_usuario(id):
     conn.commit()
     cursor.close()
     conn.close()
-    return redirect('/usuarios')
+    return redirect("/usuarios")
 
 
-@app.route('/usuarios/eliminar/<int:id>')
+@app.route("/usuarios/eliminar/<int:id>")
 @admin_required_view
 def eliminar_usuario(id):
     conn = get_connection()
@@ -287,7 +289,7 @@ def eliminar_usuario(id):
     conn.commit()
     cursor.close()
     conn.close()
-    return redirect('/usuarios')
+    return redirect("/usuarios")
 
 
 # ==========================================================
@@ -375,7 +377,7 @@ def api_eliminar_usuario(id):
 # ==========================================================
 # CURSOS (WEB)
 # ==========================================================
-@app.route('/cursos')
+@app.route("/cursos")
 @login_required_view
 def cursos():
     conn = get_connection()
@@ -384,20 +386,20 @@ def cursos():
     data = cursor.fetchall()
     cursor.close()
     conn.close()
-    return render_template('cursos.html', cursos=data)
+    return render_template("cursos.html", cursos=data)
 
 
-@app.route('/cursos/nuevo')
+@app.route("/cursos/nuevo")
 @admin_required_view
 def nuevo_curso():
-    return render_template('cursos_form.html')
+    return render_template("cursos_form.html")
 
 
-@app.route('/cursos/guardar', methods=['POST'])
+@app.route("/cursos/guardar", methods=["POST"])
 @admin_required_view
 def guardar_curso():
-    nombre = request.form['nombre']
-    descripcion = request.form['descripcion']
+    nombre = request.form["nombre"]
+    descripcion = request.form["descripcion"]
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -408,10 +410,10 @@ def guardar_curso():
     conn.commit()
     cursor.close()
     conn.close()
-    return redirect('/cursos')
+    return redirect("/cursos")
 
 
-@app.route('/cursos/editar/<int:id>')
+@app.route("/cursos/editar/<int:id>")
 @admin_required_view
 def editar_curso(id):
     conn = get_connection()
@@ -420,14 +422,14 @@ def editar_curso(id):
     curso = cursor.fetchone()
     cursor.close()
     conn.close()
-    return render_template('cursos_form.html', curso=curso)
+    return render_template("cursos_form.html", curso=curso)
 
 
-@app.route('/cursos/actualizar/<int:id>', methods=['POST'])
+@app.route("/cursos/actualizar/<int:id>", methods=["POST"])
 @admin_required_view
 def actualizar_curso(id):
-    nombre = request.form['nombre']
-    descripcion = request.form['descripcion']
+    nombre = request.form["nombre"]
+    descripcion = request.form["descripcion"]
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -438,10 +440,10 @@ def actualizar_curso(id):
     conn.commit()
     cursor.close()
     conn.close()
-    return redirect('/cursos')
+    return redirect("/cursos")
 
 
-@app.route('/cursos/eliminar/<int:id>')
+@app.route("/cursos/eliminar/<int:id>")
 @admin_required_view
 def eliminar_curso(id):
     conn = get_connection()
@@ -450,7 +452,7 @@ def eliminar_curso(id):
     conn.commit()
     cursor.close()
     conn.close()
-    return redirect('/cursos')
+    return redirect("/cursos")
 
 
 # ==========================================================
@@ -522,7 +524,7 @@ def api_eliminar_curso(id):
 # ==========================================================
 # INSCRIPCIONES (WEB)
 # ==========================================================
-@app.route('/inscripciones')
+@app.route("/inscripciones")
 @login_required_view
 def inscripciones():
     conn = get_connection()
@@ -537,10 +539,10 @@ def inscripciones():
     data = cursor.fetchall()
     cursor.close()
     conn.close()
-    return render_template('inscripciones.html', inscripciones=data)
+    return render_template("inscripciones.html", inscripciones=data)
 
 
-@app.route('/inscripciones/nueva')
+@app.route("/inscripciones/nueva")
 @login_required_view
 def nueva_inscripcion():
     conn = get_connection()
@@ -551,14 +553,14 @@ def nueva_inscripcion():
     cursos = cursor.fetchall()
     cursor.close()
     conn.close()
-    return render_template('inscripcion_form.html', usuarios=usuarios, cursos=cursos)
+    return render_template("inscripcion_form.html", usuarios=usuarios, cursos=cursos)
 
 
-@app.route('/inscripciones/guardar', methods=['POST'])
+@app.route("/inscripciones/guardar", methods=["POST"])
 @login_required_view
 def guardar_inscripcion():
-    usuario_id = request.form['usuario_id']
-    curso_id = request.form['curso_id']
+    usuario_id = request.form["usuario_id"]
+    curso_id = request.form["curso_id"]
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -569,7 +571,7 @@ def guardar_inscripcion():
     conn.commit()
     cursor.close()
     conn.close()
-    return redirect('/inscripciones')
+    return redirect("/inscripciones")
 
 
 # ==========================================================
@@ -657,5 +659,5 @@ def api_eliminar_inscripcion(id):
     return jsonify({"status": "ok", "message": "Inscripción eliminada"})
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)
