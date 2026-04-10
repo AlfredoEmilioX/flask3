@@ -1,17 +1,20 @@
 import os
 import psycopg2
-from psycopg2.extras import RealDictCursor
+import pymysql
+
 
 def get_connection():
-    DATABASE_URL = os.getenv("DATABASE_URL")
+    database_url = os.getenv("DATABASE_URL")
 
-    if not DATABASE_URL:
-        raise Exception("DATABASE_URL no está configurada")
+    # 👉 SI estás en Render / Supabase
+    if database_url:
+        return psycopg2.connect(database_url)
 
-    conn = psycopg2.connect(
-        DATABASE_URL,
-        cursor_factory=RealDictCursor,
-        sslmode="require"
+    # 👉 SI estás en local (XAMPP)
+    return pymysql.connect(
+        host="localhost",
+        user="root",
+        password="",
+        database="flask_db",
+        cursorclass=pymysql.cursors.DictCursor
     )
-
-    return conn

@@ -1,17 +1,19 @@
-from flask import Flask, render_template, request, redirect, jsonify
+from flask import Flask, render_template, request, redirect, jsonify, session, url_for
 from db import get_connection
 
+import os
 import jwt
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
-import os
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "clave_local_segura")
 
 
-
+# ==========================================================
+# JWT
+# ==========================================================
 def create_access_token(user_id: int, role: str, expires_minutes: int = 60) -> str:
     payload = {
         "user_id": user_id,
@@ -23,6 +25,7 @@ def create_access_token(user_id: int, role: str, expires_minutes: int = 60) -> s
 
     if isinstance(token, bytes):
         token = token.decode("utf-8")
+
     return token
 
 
@@ -39,7 +42,10 @@ def jwt_required(fn):
     def wrapper(*args, **kwargs):
         token = _get_bearer_token()
         if not token:
-            return jsonify({"status": "error", "message": "Token requerido (Authorization: Bearer <token>)"}), 401
+            return jsonify({
+                "status": "error",
+                "message": "Token requerido (Authorization: Bearer <token>)"
+            }), 401
 
         try:
             payload = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
@@ -67,7 +73,32 @@ def admin_required(fn):
 
 
 # ==========================================================
-# AUTH - LOGIN (JWT)
+# DECORADORES PARA VISTAS WEB
+# ==========================================================
+def login_required_view(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if "user" not in session:
+            return redirect(url_for("login_page"))
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def admin_required_view(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if "user" not in session:
+            return redirect(url_for("login_page"))
+
+        if session["user"].get("role") != "admin":
+            return redirect(url_for("dashboard"))
+
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+# ==========================================================
+# AUTH API
 # ==========================================================
 @app.route("/api/auth/login", methods=["POST"])
 def api_login():
@@ -80,7 +111,10 @@ def api_login():
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, nombre, email, password_hash, role FROM usuarios WHERE email = %s", (email,))
+    cursor.execute(
+        "SELECT id, nombre, email, password_hash, role FROM usuarios WHERE email = %s",
+        (email,)
+    )
     usuario = cursor.fetchone()
     cursor.close()
     conn.close()
@@ -105,21 +139,78 @@ def api_login():
     })
 
 
-# ================== INICIO ==================
-@app.route('/', methods=['GET', 'POST'])
+# ==========================================================
+# LOGIN WEB / DASHBOARD / LOGOUT
+# ==========================================================
+@app.route("/")
 def inicio():
-    nombre = None
-    if request.method == 'POST':
-        nombre = request.form['nombre']
-    return render_template('index.html', nombre=nombre)
+    if "user" not in session:
+        return redirect(url_for("login_page"))
+    return redirect(url_for("dashboard"))
 
 
-# ================== USUARIOS (WEB) ==================
+@app.route("/login")
+def login_page():
+    if "user" in session:
+        return redirect(url_for("dashboard"))
+    return render_template("login.html")
+
+
+@app.route("/web-login", methods=["POST"])
+def web_login():
+    email = request.form.get("email")
+    password = request.form.get("password")
+
+    if not email or not password:
+        return render_template("login.html", error="Email y contraseña son obligatorios")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, nombre, email, password_hash, role FROM usuarios WHERE email = %s",
+        (email,)
+    )
+    usuario = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if usuario is None or not check_password_hash(usuario["password_hash"], password):
+        return render_template("login.html", error="Credenciales inválidas")
+
+    token = create_access_token(usuario["id"], usuario["role"], expires_minutes=60)
+
+    session["user"] = {
+        "id": usuario["id"],
+        "nombre": usuario["nombre"],
+        "email": usuario["email"],
+        "role": usuario["role"],
+        "token": token
+    }
+
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/dashboard")
+@login_required_view
+def dashboard():
+    return render_template("index.html", user=session["user"])
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login_page"))
+
+
+# ==========================================================
+# USUARIOS (WEB)
+# ==========================================================
 @app.route('/usuarios')
+@admin_required_view
 def usuarios():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, nombre, email, role, created_at FROM usuarios")
+    cursor.execute("SELECT id, nombre, email, role, created_at FROM usuarios ORDER BY id")
     data = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -127,11 +218,13 @@ def usuarios():
 
 
 @app.route('/usuarios/nuevo')
+@admin_required_view
 def nuevo_usuario():
     return render_template('usuarios_form.html')
 
 
 @app.route('/usuarios/guardar', methods=['POST'])
+@admin_required_view
 def guardar_usuario():
     nombre = request.form['nombre']
     email = request.form['email']
@@ -153,10 +246,11 @@ def guardar_usuario():
 
 
 @app.route('/usuarios/editar/<int:id>')
+@admin_required_view
 def editar_usuario(id):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, nombre, email, role FROM usuarios WHERE id=%s", (id,))
+    cursor.execute("SELECT id, nombre, email, role FROM usuarios WHERE id = %s", (id,))
     usuario = cursor.fetchone()
     cursor.close()
     conn.close()
@@ -164,12 +258,17 @@ def editar_usuario(id):
 
 
 @app.route('/usuarios/actualizar/<int:id>', methods=['POST'])
+@admin_required_view
 def actualizar_usuario(id):
     nombre = request.form['nombre']
     email = request.form['email']
+
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("UPDATE usuarios SET nombre=%s, email=%s WHERE id=%s", (nombre, email, id))
+    cursor.execute(
+        "UPDATE usuarios SET nombre = %s, email = %s WHERE id = %s",
+        (nombre, email, id)
+    )
     conn.commit()
     cursor.close()
     conn.close()
@@ -177,22 +276,26 @@ def actualizar_usuario(id):
 
 
 @app.route('/usuarios/eliminar/<int:id>')
+@admin_required_view
 def eliminar_usuario(id):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM usuarios WHERE id=%s", (id,))
+    cursor.execute("DELETE FROM usuarios WHERE id = %s", (id,))
     conn.commit()
     cursor.close()
     conn.close()
     return redirect('/usuarios')
 
 
-# ================== API USUARIOS (JSON) ==================
+# ==========================================================
+# API USUARIOS (JSON)
+# ==========================================================
 @app.route("/api/usuarios", methods=["GET"])
+@jwt_required
 def api_listar_usuarios():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, nombre, email, role, created_at FROM usuarios")
+    cursor.execute("SELECT id, nombre, email, role, created_at FROM usuarios ORDER BY id")
     data = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -200,10 +303,14 @@ def api_listar_usuarios():
 
 
 @app.route("/api/usuarios/<int:id>", methods=["GET"])
+@jwt_required
 def api_obtener_usuario(id):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, nombre, email, role, created_at FROM usuarios WHERE id = %s", (id,))
+    cursor.execute(
+        "SELECT id, nombre, email, role, created_at FROM usuarios WHERE id = %s",
+        (id,)
+    )
     usuario = cursor.fetchone()
     cursor.close()
     conn.close()
@@ -262,12 +369,15 @@ def api_eliminar_usuario(id):
     return jsonify({"status": "ok", "message": "Usuario eliminado"})
 
 
-# ================== CURSOS (WEB) ==================
+# ==========================================================
+# CURSOS (WEB)
+# ==========================================================
 @app.route('/cursos')
+@login_required_view
 def cursos():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM cursos")
+    cursor.execute("SELECT * FROM cursos ORDER BY id")
     data = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -275,17 +385,23 @@ def cursos():
 
 
 @app.route('/cursos/nuevo')
+@admin_required_view
 def nuevo_curso():
     return render_template('cursos_form.html')
 
 
 @app.route('/cursos/guardar', methods=['POST'])
+@admin_required_view
 def guardar_curso():
     nombre = request.form['nombre']
     descripcion = request.form['descripcion']
+
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO cursos (nombre, descripcion) VALUES (%s, %s)", (nombre, descripcion))
+    cursor.execute(
+        "INSERT INTO cursos (nombre, descripcion) VALUES (%s, %s)",
+        (nombre, descripcion)
+    )
     conn.commit()
     cursor.close()
     conn.close()
@@ -293,10 +409,11 @@ def guardar_curso():
 
 
 @app.route('/cursos/editar/<int:id>')
+@admin_required_view
 def editar_curso(id):
     conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM cursos WHERE id=%s", (id,))
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM cursos WHERE id = %s", (id,))
     curso = cursor.fetchone()
     cursor.close()
     conn.close()
@@ -304,12 +421,17 @@ def editar_curso(id):
 
 
 @app.route('/cursos/actualizar/<int:id>', methods=['POST'])
+@admin_required_view
 def actualizar_curso(id):
     nombre = request.form['nombre']
     descripcion = request.form['descripcion']
+
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("UPDATE cursos SET nombre=%s, descripcion=%s WHERE id=%s", (nombre, descripcion, id))
+    cursor.execute(
+        "UPDATE cursos SET nombre = %s, descripcion = %s WHERE id = %s",
+        (nombre, descripcion, id)
+    )
     conn.commit()
     cursor.close()
     conn.close()
@@ -317,22 +439,26 @@ def actualizar_curso(id):
 
 
 @app.route('/cursos/eliminar/<int:id>')
+@admin_required_view
 def eliminar_curso(id):
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM cursos WHERE id=%s", (id,))
+    cursor.execute("DELETE FROM cursos WHERE id = %s", (id,))
     conn.commit()
     cursor.close()
     conn.close()
     return redirect('/cursos')
 
 
-# ================== API CURSOS (JSON) ==================
+# ==========================================================
+# API CURSOS (JSON)
+# ==========================================================
 @app.route("/api/cursos", methods=["GET"])
+@jwt_required
 def api_listar_cursos():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM cursos")
+    cursor.execute("SELECT * FROM cursos ORDER BY id")
     data = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -340,6 +466,7 @@ def api_listar_cursos():
 
 
 @app.route("/api/cursos/<int:id>", methods=["GET"])
+@jwt_required
 def api_obtener_curso(id):
     conn = get_connection()
     cursor = conn.cursor()
@@ -389,8 +516,11 @@ def api_eliminar_curso(id):
     return jsonify({"status": "ok", "message": "Curso eliminado"})
 
 
-# ================== INSCRIPCIONES (WEB) ==================
+# ==========================================================
+# INSCRIPCIONES (WEB)
+# ==========================================================
 @app.route('/inscripciones')
+@login_required_view
 def inscripciones():
     conn = get_connection()
     cursor = conn.cursor()
@@ -399,6 +529,7 @@ def inscripciones():
         FROM inscripciones i
         JOIN usuarios u ON i.usuario_id = u.id
         JOIN cursos c ON i.curso_id = c.id
+        ORDER BY i.id
     """)
     data = cursor.fetchall()
     cursor.close()
@@ -407,12 +538,13 @@ def inscripciones():
 
 
 @app.route('/inscripciones/nueva')
+@login_required_view
 def nueva_inscripcion():
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM usuarios")
+    cursor.execute("SELECT * FROM usuarios ORDER BY id")
     usuarios = cursor.fetchall()
-    cursor.execute("SELECT * FROM cursos")
+    cursor.execute("SELECT * FROM cursos ORDER BY id")
     cursos = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -420,13 +552,15 @@ def nueva_inscripcion():
 
 
 @app.route('/inscripciones/guardar', methods=['POST'])
+@login_required_view
 def guardar_inscripcion():
     usuario_id = request.form['usuario_id']
     curso_id = request.form['curso_id']
+
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO inscripciones (usuario_id, curso_id, fecha_inscripcion) VALUES (%s, %s, CURDATE())",
+        "INSERT INTO inscripciones (usuario_id, curso_id, fecha_inscripcion) VALUES (%s, %s, CURRENT_DATE)",
         (usuario_id, curso_id)
     )
     conn.commit()
@@ -435,8 +569,11 @@ def guardar_inscripcion():
     return redirect('/inscripciones')
 
 
-# ================== API INSCRIPCIONES (JSON) ==================
+# ==========================================================
+# API INSCRIPCIONES (JSON)
+# ==========================================================
 @app.route("/api/inscripciones", methods=["GET"])
+@jwt_required
 def api_listar_inscripciones():
     conn = get_connection()
     cursor = conn.cursor()
@@ -446,6 +583,7 @@ def api_listar_inscripciones():
         FROM inscripciones i
         JOIN usuarios u ON i.usuario_id = u.id
         JOIN cursos c ON i.curso_id = c.id
+        ORDER BY i.id
     """)
     data = cursor.fetchall()
     cursor.close()
@@ -454,6 +592,7 @@ def api_listar_inscripciones():
 
 
 @app.route("/api/inscripciones/<int:id>", methods=["GET"])
+@jwt_required
 def api_obtener_inscripcion(id):
     conn = get_connection()
     cursor = conn.cursor()
@@ -489,7 +628,7 @@ def api_crear_inscripcion():
     cursor = conn.cursor()
     try:
         cursor.execute(
-            "INSERT INTO inscripciones (usuario_id, curso_id, fecha_inscripcion) VALUES (%s, %s, CURDATE())",
+            "INSERT INTO inscripciones (usuario_id, curso_id, fecha_inscripcion) VALUES (%s, %s, CURRENT_DATE)",
             (usuario_id, curso_id)
         )
         conn.commit()
@@ -513,16 +652,6 @@ def api_eliminar_inscripcion(id):
     cursor.close()
     conn.close()
     return jsonify({"status": "ok", "message": "Inscripción eliminada"})
-
-
-@app.route("/login")
-def login_page():
-    return render_template("login.html")
-
-
-@app.route("/prueba-api")
-def prueba_api():
-    return render_template("prueba_api.html")
 
 
 if __name__ == '__main__':

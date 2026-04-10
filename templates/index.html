@@ -1,17 +1,30 @@
 {% extends 'base.html' %}
-{% block title %}Inicio{% endblock %}
+{% block title %}Panel Principal{% endblock %}
 
 {% block content %}
 <div class="mt-4">
-    <h4>Bienvenido</h4>
+    <h4>Bienvenido, {{ user.nombre }}</h4>
 
-    <form method="POST" class="mt-3">
-        <input type="text" name="nombre" class="form-control mb-2" placeholder="Ingrese su nombre">
-        <button class="btn btn-primary">Enviar</button>
-    </form>
+    <div class="card mt-3">
+        <div class="card-body">
+            <p><strong>Correo:</strong> {{ user.email }}</p>
+            <p><strong>Rol:</strong> {{ user.role }}</p>
 
-    {% if nombre %}
-        <p class="mt-3">Hola <strong>{{ nombre }}</strong>, bienvenido al sistema.</p>
-    {% endif %}
+            <label><strong>Token JWT:</strong></label>
+            <textarea class="form-control" rows="5" readonly>{{ user.token }}</textarea>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        {% if user.role == "admin" %}
+            <div class="alert alert-success">
+                Has iniciado sesión como <strong>administrador</strong>. Tienes acceso completo.
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                Has iniciado sesión como <strong>alumno</strong>. Solo ves los módulos permitidos.
+            </div>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

@@ -1,60 +1,28 @@
 {% extends "base.html" %}
+{% block title %}Login{% endblock %}
+
 {% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <h3>Iniciar Sesión</h3>
 
-<div class="container mt-5">
-  <h2>Iniciar Sesión</h2>
+        {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
 
-  <div class="mb-3">
-    <label>Email</label>
-    <input type="email" id="email" class="form-control">
-  </div>
+        <form method="POST" action="/web-login">
+            <div class="mb-3">
+                <label class="form-label">Correo</label>
+                <input type="email" name="email" class="form-control" required>
+            </div>
 
-  <div class="mb-3">
-    <label>Password</label>
-    <input type="password" id="password" class="form-control">
-  </div>
+            <div class="mb-3">
+                <label class="form-label">Contraseña</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
 
-  <button class="btn btn-primary" onclick="login()">Ingresar</button>
-
-  <p id="mensaje" class="text-danger mt-3"></p>
+            <button type="submit" class="btn btn-primary">Ingresar</button>
+        </form>
+    </div>
 </div>
-
-<script>
-async function login() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-
-  try {
-    const response = await fetch("http://127.0.0.1:5000/api/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ email, password })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      document.getElementById("mensaje").innerText = data.message;
-      return;
-    }
-
-    // Guardar token y rol
-    localStorage.setItem("token", data.access_token);
-    localStorage.setItem("role", data.user.role);
-
-    // Redirigir según rol
-    if (data.user.role === "admin") {
-      window.location.href = "/cursos";
-    } else {
-      window.location.href = "/cursos";
-    }
-
-  } catch (error) {
-    document.getElementById("mensaje").innerText = "Error de conexión";
-  }
-}
-</script>
-
 {% endblock %}
