@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, jsonify, session, url_for
 from db import get_connection
-
+from flask import request, render_template, redirect, url_for, session, flash
+from werkzeug.security import check_password_hash
 import os
 import jwt
 from datetime import datetime, timedelta, timezone
@@ -156,38 +157,36 @@ def login_page():
     return render_template("login.html")
 
 
-@app.route("/web-login", methods=["POST"])
-def web_login():
-    email = request.form.get("email")
-    password = request.form.get("password")
 
-    if not email or not password:
-        return render_template("login.html", error="Email y contraseña son obligatorios")
+
+@app.route('/web-login', methods=['POST'])
+def web_login():
+    username = request.form['username']
+    password = request.form['password']
 
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT id, nombre, email, password_hash, role FROM usuarios WHERE email = %s",
-        (email,)
-    )
-    usuario = cursor.fetchone()
-    cursor.close()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT id, username, password_hash, role
+        FROM usuarios
+        WHERE username = %s
+    """, (username,))
+
+    usuario = cur.fetchone()
+
+    cur.close()
     conn.close()
 
-    if usuario is None or not check_password_hash(usuario["password_hash"], password):
-        return render_template("login.html", error="Credenciales inválidas")
+    if usuario is None or not check_password_hash(usuario['password_hash'], password):
+        flash("Usuario o contraseña incorrectos", "danger")
+        return redirect(url_for('login'))
 
-    token = create_access_token(usuario["id"], usuario["role"], expires_minutes=60)
+    session['user_id'] = usuario['id']
+    session['username'] = usuario['username']
+    session['role'] = usuario['role']
 
-    session["user"] = {
-        "id": usuario["id"],
-        "nombre": usuario["nombre"],
-        "email": usuario["email"],
-        "role": usuario["role"],
-        "token": token
-    }
-
-    return redirect(url_for("dashboard"))
+    return redirect(url_for('index'))
 
 
 @app.route("/dashboard")
